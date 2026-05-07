@@ -9,9 +9,9 @@ Railtracks starts Vector once, then spawns one `railway logs` subprocess per con
 
 ```mermaid
 flowchart LR
-  subgraph railway["Railway CLI"]
-    L1["railway logs · service A"]
-    L2["railway logs · service B"]
+  subgraph railway["Railtracks"]
+    L1["railway-cli logs · service A"]
+    L2["railway-cli logs · service B"]
   end
   V[Vector]
   L1 --> V
