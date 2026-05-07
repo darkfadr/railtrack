@@ -1,0 +1,42 @@
+min_version = "2024.11.0"
+
+[tools]
+go = "1.24"
+railway = "1.2.0"
+
+[env]
+_.file = ".env"
+
+[tasks.dev]
+description = "Run the Railway logs to Vector pipeline"
+run = "go run ./cmd/railtracks --config ${CONFIG:-railtracks.json}"
+
+[tasks.run]
+description = "Run the CLI"
+run = "go run ./cmd/railtracks --config ${CONFIG:-railtracks.json}"
+
+[tasks.build]
+description = "Build the CLI"
+run = "go build -o bin/railtracks ./cmd/railtracks"
+sources = ["cmd/**/*.go", "go.mod"]
+outputs = ["bin/railtracks"]
+
+[tasks.test]
+description = "Run tests"
+run = "go test ./..."
+
+[tasks.fmt]
+description = "Format Go files"
+run = "gofmt -w ."
+
+[tasks.check]
+description = "Run tests and vet"
+run = ["go test ./...", "go vet ./..."]
+
+[tasks."docker:build"]
+description = "Build the Docker image"
+run = "docker build --build-arg RAILWAY_CLI_VERSION=${RAILWAY_CLI_VERSION:-latest} -t railtracks:local ."
+
+[tasks."docker:run"]
+description = "Run the Docker image with config from env vars"
+run = "docker run --rm --env-file .env -e TRACK_CONFIG=\"$(cat railtracks.json)\" -e VECTOR_CONFIG=\"$(cat vector.toml)\" railtracks:local"

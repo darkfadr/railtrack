@@ -1,0 +1,11 @@
+bin/
+dist/
+tmp/
+
+.env
+.env.*
+!.env.example
+
+railtracks.json
+tracks.json
+vector.*

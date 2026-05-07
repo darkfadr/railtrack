@@ -1,0 +1,5 @@
+{
+  "environment": "production",
+  "service_ids": ["api", "worker"],
+  "vector_config": "vector.toml"
+}
