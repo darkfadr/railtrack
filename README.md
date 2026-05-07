@@ -1,15 +1,15 @@
-# Railtracks
+# Railtrack
 
 [![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Vector](https://img.shields.io/badge/pipeline-Vector-9769FE)](https://vector.dev/)
 
 **Bridge [Railway](https://railway.app/) service logs into [Vector](https://vector.dev/) with one process tree.**
 
-Railtracks starts Vector once, then spawns one `railway logs` subprocess per configured service ID. Every stream is multiplexed into Vector’s stdin so you can parse, filter, and ship logs with your existing Vector topology—no extra collectors or sidecars on Railway itself.
+Railtrack starts Vector once, then spawns one `railway logs` subprocess per configured service ID. Every stream is multiplexed into Vector’s stdin so you can parse, filter, and ship logs with your existing Vector topology—no extra collectors or sidecars on Railway itself.
 
 ```mermaid
 flowchart LR
-  subgraph railway["Railtracks"]
+  subgraph railway["Railtrack"]
     L1["railway-cli logs · service A"]
     L2["railway-cli logs · service B"]
   end
@@ -41,7 +41,7 @@ flowchart LR
 ## Quick start
 
 ```sh
-git clone <repository-url>
+git clone git@github.com:darkfadr/railtrack.git
 cd railtracks
 mise install
 cp railtracks.example.json railtracks.json
@@ -69,39 +69,48 @@ CONFIG=./production.json mise run dev
 Build the container image:
 
 ```sh
-mise run docker-build
+mise run docker:build
 ```
 
-Run it with your local config files passed through environment variables:
+The container does not take a railtracks JSON blob. It only uses environment variables. The entrypoint turns **`RAILWAY_SERVICES`**, **`RAILWAY_ENVIRONMENT`**, and **`VECTOR_CONFIG_PATH`** into a generated `/app/railtracks.json` for the binary (plus writes Vector config from **`VECTOR_CONFIG`**).
+
+**`mise run docker:run`** runs **`scripts/docker-run.sh`**, which reads **`RAILWAY_SERVICES`** and **`RAILWAY_ENVIRONMENT`** from `./railtracks.json`, passes **`VECTOR_CONFIG`** from `./vector.toml`, and loads **`--env-file .env`** (put **`RAILWAY_TOKEN`** there). Requires **Python 3** on the host for that helper.
+
+| Variable | Purpose |
+|----------|---------|
+| **`RAILWAY_TOKEN`** | Passed through to the Railway CLI for non-interactive auth |
+| **`RAILWAY_SERVICES`** | Comma-separated service IDs (e.g. `api,worker,frontend`) |
+| **`RAILWAY_ENVIRONMENT`** | Railway environment name (default `production` in the image) |
+| **`VECTOR_CONFIG`** | Full contents of your Vector config file (written to **`VECTOR_CONFIG_PATH`**) |
+| **`VECTOR_CONFIG_PATH`** / **`TRACK_CONFIG_PATH`** | Where the entrypoint writes files (defaults `/app/vector.toml`, `/app/railtracks.json`) |
 
 ```sh
-mise run docker-run
+mise run docker:run
 ```
 
 The image contains:
 
 - `railtracks` compiled from this Go module
-- Railway CLI installed with `npm i -g @railway/cli`
-- Vector installed from the official Vector APT repository
+- Railway CLI (`cli.new` install in the image)
+- Vector from the official Vector APT repository
 
-Runtime files stay outside the image. Keep editing `.env`, `railtracks.json`, and `vector.toml` locally; the Docker entrypoint writes `TRACK_CONFIG` to `/app/railtracks.json` and `VECTOR_CONFIG` to `/app/vector.toml` before starting `railtracks`.
-
-Without mise, pass the config contents yourself:
+Without mise:
 
 ```sh
 docker run --rm \
   --env-file .env \
-  -e TRACK_CONFIG="$(cat railtracks.json)" \
+  -e RAILWAY_SERVICES="api,worker" \
+  -e RAILWAY_ENVIRONMENT=production \
   -e VECTOR_CONFIG="$(cat vector.toml)" \
   railtracks:local
 ```
 
-You can override the generated paths with `TRACK_CONFIG_PATH` and `VECTOR_CONFIG_PATH`. If either env var is empty, the entrypoint falls back to an existing file at that path.
+If **`RAILWAY_SERVICES`** is missing, the entrypoint fails. If **`VECTOR_CONFIG`** is unset and there is no file at **`VECTOR_CONFIG_PATH`**, the entrypoint fails.
 
 To pin the Railway CLI package during image builds:
 
 ```sh
-RAILWAY_CLI_VERSION=latest mise run docker-build
+RAILWAY_CLI_VERSION=latest mise run docker:build
 ```
 
 Sources:
