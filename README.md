@@ -72,16 +72,17 @@ Build the container image:
 mise run docker:build
 ```
 
-The container does not take a railtracks JSON blob. It only uses environment variables. The entrypoint turns **`RAILWAY_SERVICES`**, **`RAILWAY_ENVIRONMENT`**, and **`VECTOR_CONFIG_PATH`** into a generated `/app/railtracks.json` for the binary (plus writes Vector config from **`VECTOR_CONFIG`**).
+The container does not take a railtracks JSON blob. It only uses environment variables. The entrypoint turns **`RAILWAY_SERVICES`**, **`RAILWAY_ENVIRONMENT`**, and **`VECTOR_CONFIG_PATH`** into a generated `/app/railtracks.json` for the binary (plus writes Vector config from **`VECTOR_CONFIG`**). Vector config content can be TOML, YAML, or JSON.
 
-**`mise run docker:run`** runs **`scripts/docker-run.sh`**, which reads **`RAILWAY_SERVICES`** and **`RAILWAY_ENVIRONMENT`** from `./railtracks.json`, passes **`VECTOR_CONFIG`** from `./vector.toml`, and loads **`--env-file .env`** (put **`RAILWAY_TOKEN`** there). Requires **Python 3** on the host for that helper.
+**`mise run docker:run`** runs **`scripts/docker-run.sh`**, which reads **`RAILWAY_SERVICES`** and **`RAILWAY_ENVIRONMENT`** from `./railtracks.json`, auto-detects `vector.toml`, `vector.yaml`, `vector.yml`, or `vector.json`, passes it as **`VECTOR_CONFIG`**, and loads **`--env-file .env`** (put **`RAILWAY_TOKEN`** there). Requires **Python 3** on the host for that helper.
 
 | Variable | Purpose |
 |----------|---------|
 | **`RAILWAY_TOKEN`** | Passed through to the Railway CLI for non-interactive auth |
 | **`RAILWAY_SERVICES`** | Comma-separated service IDs (e.g. `api,worker,frontend`) |
 | **`RAILWAY_ENVIRONMENT`** | Railway environment name (default `production` in the image) |
-| **`VECTOR_CONFIG`** | Full contents of your Vector config file (written to **`VECTOR_CONFIG_PATH`**) |
+| **`VECTOR_CONFIG`** | Full contents of your Vector config file (TOML/YAML/JSON; written to **`VECTOR_CONFIG_PATH`**) |
+| **`VECTOR_CONFIG_FORMAT`** | Optional default format when **`VECTOR_CONFIG_PATH`** is not set (`toml`, `yaml`, `yml`, `json`) |
 | **`VECTOR_CONFIG_PATH`** / **`TRACK_CONFIG_PATH`** | Where the entrypoint writes files (defaults `/app/vector.toml`, `/app/railtracks.json`) |
 
 ```sh
@@ -101,7 +102,8 @@ docker run --rm \
   --env-file .env \
   -e RAILWAY_SERVICES="api,worker" \
   -e RAILWAY_ENVIRONMENT=production \
-  -e VECTOR_CONFIG="$(cat vector.toml)" \
+  -e VECTOR_CONFIG_FORMAT=yaml \
+  -e VECTOR_CONFIG="$(cat vector.yaml)" \
   railtracks:local
 ```
 

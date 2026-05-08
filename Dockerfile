@@ -42,6 +42,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV TRACK_CONFIG_PATH=/app/railtracks.json \
     VECTOR_CONFIG_PATH=/app/vector.toml \
+    VECTOR_CONFIG_FORMAT=toml \
     RAILWAY_ENVIRONMENT=production
 
 ENTRYPOINT ["docker-entrypoint.sh"]

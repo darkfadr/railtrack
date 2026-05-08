@@ -2,7 +2,6 @@
 set -euo pipefail
 
 track_config_path="${TRACK_CONFIG_PATH:-/app/railtracks.json}"
-vector_config_path="${VECTOR_CONFIG_PATH:-/app/vector.toml}"
 
 trim() {
   local var="$1"
@@ -60,6 +59,29 @@ build_track_config_from_env() {
     "$(json_escape "$vector_config_path")"
 }
 
+resolve_vector_config_path() {
+  if [[ -n "${VECTOR_CONFIG_PATH:-}" ]]; then
+    printf '%s' "${VECTOR_CONFIG_PATH}"
+    return
+  fi
+
+  local format="${VECTOR_CONFIG_FORMAT:-toml}"
+  format="$(printf '%s' "$format" | tr '[:upper:]' '[:lower:]')"
+
+  case "$format" in
+    toml|json|yaml)
+      printf '/app/vector.%s' "$format"
+      ;;
+    yml)
+      printf '/app/vector.yml'
+      ;;
+    *)
+      echo "railtracks: VECTOR_CONFIG_FORMAT must be one of: toml, yaml, yml, json" >&2
+      exit 1
+      ;;
+  esac
+}
+
 write_vector_config() {
   local name="$1"
   local value="$2"
@@ -92,6 +114,8 @@ write_track_config() {
 if [[ -n "${RAILWAY_TOKEN:-}" ]]; then
   export RAILWAY_TOKEN
 fi
+
+vector_config_path="$(resolve_vector_config_path)"
 
 write_vector_config "VECTOR_CONFIG" "${VECTOR_CONFIG:-}" "$vector_config_path"
 write_track_config
