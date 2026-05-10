@@ -16,7 +16,7 @@ flowchart LR
   V[Vector]
   L1 --> V
   L2 --> V
-  V --> Sinks["Sinks · files · HTTP · Datadog · …"]
+  V --> Sinks["Disk · S3 · HTTP · Datadog · HoneyComb"]
 ```
 
 ---
@@ -72,18 +72,19 @@ Build the container image:
 mise run docker:build
 ```
 
-The container does not take a railtracks JSON blob. It only uses environment variables. The entrypoint turns **`RAILWAY_SERVICES`**, **`RAILWAY_ENVIRONMENT`**, and **`VECTOR_CONFIG_PATH`** into a generated `/app/railtracks.json` for the binary (plus writes Vector config from **`VECTOR_CONFIG`**). Vector config content can be TOML, YAML, or JSON.
+The container does not take a railtracks JSON blob. The entrypoint generates **`/app/railtracks.json`** from **`RAILWAY_SERVICES`** and **`RAILWAY_ENVIRONMENT`**, resolves the Vector config path from **`VECTOR_CONFIG_FORMAT`** (or **`VECTOR_CONFIG_PATH`**), and writes Vector config from **`VECTOR_CONFIG`**. Vector config content can be TOML, YAML, or JSON; the path extension must match the format (see the table below).
 
-**`mise run docker:run`** runs **`scripts/docker-run.sh`**, which reads **`RAILWAY_SERVICES`** and **`RAILWAY_ENVIRONMENT`** from `./railtracks.json`, auto-detects `vector.toml`, `vector.yaml`, `vector.yml`, or `vector.json`, passes it as **`VECTOR_CONFIG`**, and loads **`--env-file .env`** (put **`RAILWAY_TOKEN`** there). Requires **Python 3** on the host for that helper.
+**`mise run docker:run`** runs **`scripts/docker-run.sh`**, which loads **`--env-file .env`** (set **`RAILWAY_SERVICES`**, **`RAILWAY_TOKEN`**, and optional **`RAILWAY_ENVIRONMENT`** there — no host **`railtracks.json`** required for Docker). It picks a local `vector.toml` / `vector.yaml` / `vector.yml` / `vector.json` (or **`VECTOR_CONFIG_FILE`**), sets **`VECTOR_CONFIG_FORMAT`** from the extension, and passes the file contents as **`VECTOR_CONFIG`**. Extra **`docker run`** flags go after the script name, for example: `bash scripts/docker-run.sh --network host`.
 
 | Variable | Purpose |
 |----------|---------|
 | **`RAILWAY_TOKEN`** | Passed through to the Railway CLI for non-interactive auth |
 | **`RAILWAY_SERVICES`** | Comma-separated service IDs (e.g. `api,worker,frontend`) |
 | **`RAILWAY_ENVIRONMENT`** | Railway environment name (default `production` in the image) |
-| **`VECTOR_CONFIG`** | Full contents of your Vector config file (TOML/YAML/JSON; written to **`VECTOR_CONFIG_PATH`**) |
-| **`VECTOR_CONFIG_FORMAT`** | Optional default format when **`VECTOR_CONFIG_PATH`** is not set (`toml`, `yaml`, `yml`, `json`) |
-| **`VECTOR_CONFIG_PATH`** / **`TRACK_CONFIG_PATH`** | Where the entrypoint writes files (defaults `/app/vector.toml`, `/app/railtracks.json`) |
+| **`VECTOR_CONFIG`** | Full contents of your Vector config file (TOML/YAML/JSON; written to the resolved path below) |
+| **`VECTOR_CONFIG_FORMAT`** | When **`VECTOR_CONFIG_PATH`** is unset, picks the file under `/app`: `toml` → `vector.toml`, `json` → `vector.json`, `yaml` → `vector.yaml`, `yml` → `vector.yml` (default `toml`) |
+| **`VECTOR_CONFIG_PATH`** | Optional absolute path for the Vector config file. If set, it wins over **`VECTOR_CONFIG_FORMAT`** — use an extension Vector recognizes (`.toml`, `.json`, `.yaml`, `.yml`) so it matches **`VECTOR_CONFIG`** |
+| **`TRACK_CONFIG_PATH`** | Where the generated **`railtracks`** JSON is written (default `/app/railtracks.json`) |
 
 ```sh
 mise run docker:run
@@ -107,7 +108,7 @@ docker run --rm \
   railtracks:local
 ```
 
-If **`RAILWAY_SERVICES`** is missing, the entrypoint fails. If **`VECTOR_CONFIG`** is unset and there is no file at **`VECTOR_CONFIG_PATH`**, the entrypoint fails.
+If **`RAILWAY_SERVICES`** is missing, the entrypoint fails. If **`VECTOR_CONFIG`** is unset and there is no file yet at the resolved path (from **`VECTOR_CONFIG_FORMAT`** / **`VECTOR_CONFIG_PATH`**), the entrypoint fails.
 
 To pin the Railway CLI package during image builds:
 

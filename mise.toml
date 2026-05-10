@@ -38,5 +38,14 @@ description = "Build the Docker image"
 run = "docker build --build-arg RAILWAY_CLI_VERSION=${RAILWAY_CLI_VERSION:-latest} -t railtracks:local ."
 
 [tasks."docker:run"]
-description = "Run image with env config; auto-detect vector toml/yaml/json"
+description = "Run image: .env for Railway; entrypoint generates railtracks.json; VECTOR_CONFIG from local vector file"
 run = "bash scripts/docker-run.sh"
+
+[tasks."docker:test"]
+description = "Test the Docker image"
+depends = ["docker:build"]
+depends_post = ["docker:run"]
+
+[tasks."docker:validate"]
+description = "Validate the Docker image from the registry"
+run = "docker run --rm ghcr.io/darkfadr/railtracks:latest"

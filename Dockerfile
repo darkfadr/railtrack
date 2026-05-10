@@ -32,7 +32,11 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /app/tmp/vector /var/lib/vector
 
-RUN curl -fsSL cli.new | bash
+ENV HOME=/root
+
+# Railway install script puts the binary in ~/.railway/bin (not on PATH by default).
+RUN curl -fsSL cli.new | bash \
+  && test -x /root/.railway/bin/railway
 
 COPY --from=build /out/railtracks /usr/local/bin/railtracks
 COPY railtracks.example.json /app/railtracks.example.json
@@ -40,8 +44,8 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENV TRACK_CONFIG_PATH=/app/railtracks.json \
-    VECTOR_CONFIG_PATH=/app/vector.toml \
+ENV PATH="/root/.railway/bin:${PATH}" \
+    TRACK_CONFIG_PATH=/app/railtracks.json \
     VECTOR_CONFIG_FORMAT=toml \
     RAILWAY_ENVIRONMENT=production
 

@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# Runs the image with env-based config only: RAILWAY_SERVICES and RAILWAY_ENVIRONMENT
-# are taken from ./railtracks.json in the repo root (no TRACK_CONFIG in the container).
+# Run the image: RAILWAY_SERVICES and RAILWAY_ENVIRONMENT come from .env (see .env.example).
+# The container entrypoint generates /app/railtracks.json — no host railtracks.json required.
+# Passes VECTOR_CONFIG from a local vector.* file (plus VECTOR_CONFIG_FORMAT from the extension).
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$root"
-
-if [[ ! -f railtracks.json ]]; then
-  echo "docker-run: missing railtracks.json in $root" >&2
-  exit 1
-fi
+cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 vector_config_file="${VECTOR_CONFIG_FILE:-}"
 if [[ -z "$vector_config_file" ]]; then
@@ -22,26 +17,25 @@ if [[ -z "$vector_config_file" ]]; then
 fi
 
 if [[ -z "$vector_config_file" || ! -f "$vector_config_file" ]]; then
-  echo "docker-run: missing Vector config file (set VECTOR_CONFIG_FILE or add vector.toml|yaml|yml|json)" >&2
+  echo "docker-run: missing Vector config (set VECTOR_CONFIG_FILE or add vector.toml|yaml|yml|json)" >&2
   exit 1
 fi
 
-RAILWAY_SERVICES="$(
-  python3 -c 'import json; d=json.load(open("railtracks.json")); print(",".join(d["service_ids"]))'
-)"
-RAILWAY_ENVIRONMENT="$(
-  python3 -c 'import json; d=json.load(open("railtracks.json")); print(d.get("environment", "production"))'
-)"
+vector_ext_lower="$(printf '%s' "${vector_config_file##*.}" | tr '[:upper:]' '[:lower:]')"
 
-export RAILWAY_SERVICES
-export RAILWAY_ENVIRONMENT
-
-vector_ext="${vector_config_file##*.}"
-vector_config_path="/app/vector.${vector_ext}"
+case "$vector_ext_lower" in
+  toml) vector_config_format=toml ;;
+  json) vector_config_format=json ;;
+  yaml) vector_config_format=yaml ;;
+  yml) vector_config_format=yml ;;
+  *)
+    echo "docker-run: unsupported Vector config extension .$vector_ext_lower (use toml, yaml, yml, or json)" >&2
+    exit 1
+    ;;
+esac
 
 exec docker run --rm --env-file .env \
-  -e "RAILWAY_SERVICES=$RAILWAY_SERVICES" \
-  -e "RAILWAY_ENVIRONMENT=$RAILWAY_ENVIRONMENT" \
-  -e "VECTOR_CONFIG_PATH=$vector_config_path" \
-  -e "VECTOR_CONFIG=$(cat "$vector_config_file")" \
+  -e "VECTOR_CONFIG_FORMAT=$vector_config_format" \
+  -e VECTOR_CONFIG="$(cat "$vector_config_file")" \
+  "$@" \
   railtracks:local
